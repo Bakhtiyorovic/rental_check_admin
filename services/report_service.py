@@ -7,15 +7,20 @@ from database.models import (
     Account,
     AccountOwner,
     Report,
-    ReportShare
+    ReportShare,
+    OwnerReport,
+    UserOwner,  # Qo'shildi
 )
 
-
+# Bot obyektini import qilish (loyihangizdagi bot joylashgan joyga qarab o'zgartiring)
+# Masalan: from loader import investor_bot
+# yoki funksiyaga argument sifatida bering
 
 async def create_report(
     account_number: int,
     hours: int,
-    total_price: int
+    total_price: int,
+    investor_bot=None  # Bot obyektini qabul qilish
 ):
     async with SessionLocal() as session:
 
@@ -42,7 +47,6 @@ async def create_report(
         session.add(report)
 
         account.status = "busy"
-
         account.busy_until = (
                 datetime.utcnow()
                 + timedelta(hours=hours)
@@ -59,6 +63,15 @@ async def create_report(
                 relation.percent
             ) // 100
 
+            owner_report = OwnerReport(
+                owner_id=relation.owner.id,
+                account_number=account.account_number,
+                amount=amount,
+                hours=hours
+            )
+
+            session.add(owner_report)
+
             share = ReportShare(
                 report_id=report.id,
                 owner_id=relation.owner.id,
@@ -73,7 +86,33 @@ async def create_report(
                 f"{amount:,} so'm"
             )
 
-        # account.status = "busy"
+            # --- INVESTORLARGA XABAR YUBORISH QISMI ---
+            if investor_bot:
+                # Ushbu ownerga bog'langan barcha Telegram ID larni olamiz
+                links = (
+                    await session.execute(
+                        select(UserOwner)
+                        .where(
+                            UserOwner.owner_id
+                            == relation.owner.id
+                        )
+                    )
+                ).scalars().all()
+
+                for link in links:
+                    try:
+                        await investor_bot.send_message(
+                            link.telegram_id,
+                            (
+                                f"🎮 Akkount "
+                                f"{account.account_number}\n\n"
+                                f"💰 Ulushingiz:\n"
+                                f"{amount:,} so'm"
+                            )
+                        )
+                    except Exception as e:
+                        print(f"Xabar yuborishda xato ({link.telegram_id}): {e}")
+            # ------------------------------------------
 
         await session.commit()
 
@@ -83,7 +122,6 @@ async def create_report(
 from services.account_service import (
     get_accounts
 )
-
 
 async def report_accounts_keyboard():
 

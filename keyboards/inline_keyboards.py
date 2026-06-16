@@ -155,20 +155,20 @@ async def status_keyboard():
 
     accounts = await get_all_accounts()
 
-    for account in accounts:
-
-        if account.status == "busy":
-
-            kb.button(
-                text=(
-                    f"🔓 "
-                    f"{account.account_number}"
-                ),
-                callback_data=(
-                    f"free_"
-                    f"{account.account_number}"
-                )
-            )
+    # for account in accounts:
+    #
+    #     if account.status == "busy":
+    #
+    #         kb.button(
+    #             text=(
+    #                 f"🔓 "
+    #                 f"{account.account_number}"
+    #             ),
+    #             callback_data=(
+    #                 f"free_"
+    #                 f"{account.account_number}"
+    #             )
+    #         )
 
     kb.button(
         text="🔙 Asosiy sahifaga qaytish",

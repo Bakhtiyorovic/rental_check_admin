@@ -4,6 +4,7 @@ import os
 load_dotenv()
 
 BOT_TOKEN = os.getenv("BOT_TOKEN")
+INVESTOR_BOT_TOKEN = os.getenv("INVESTOR_BOT_TOKEN")
 
 DB_HOST = os.getenv("DB_HOST")
 DB_PORT = os.getenv("DB_PORT")

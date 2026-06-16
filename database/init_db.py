@@ -4,7 +4,8 @@ from database.models import (
     Account,
     Owner,
     AccountOwner,
-    Report
+    Report,
+    UserOwner
 )
 
 
