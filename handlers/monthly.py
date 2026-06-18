@@ -3,7 +3,7 @@ from aiogram.types import (
     Message,
     CallbackQuery
 )
-
+from aiogram.fsm.context import FSMContext
 from keyboards.inline_keyboards import (
     monthly_report_keyboard,
     back_to_main_page
@@ -17,8 +17,10 @@ router = Router()
     F.text == "Oylik hisobotlar"
 )
 async def monthly_report_menu(
-    message: Message
+    message: Message,
+        state: FSMContext,
 ):
+    await state.clear()
 
     await message.answer(
         "Hisobot turini tanlang:",

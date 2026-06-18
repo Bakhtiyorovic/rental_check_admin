@@ -19,13 +19,16 @@ async def reports_menu(
     state: FSMContext
 ):
 
+    await state.clear()
+
     await state.set_state(
         ReportStates.waiting_account
     )
 
     await message.answer(
         "Akkount tanlang:",
-        reply_markup= await report_accounts_keyboard()
+        reply_markup=
+        await report_accounts_keyboard()
     )
 
 

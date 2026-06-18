@@ -1,5 +1,4 @@
 from aiogram import Router, F
-from aiogram.fsm.context import FSMContext
 from aiogram.types import Message, CallbackQuery, reply_keyboard_markup
 from states.akkountlar import AddAccountStates, DeleteAccountStates
 from keyboards.inline_keyboards import accounts_menu, accounts_list_keyboard, generate_accounts_text, back_to_main_page
@@ -25,8 +24,11 @@ router = Router()
 
 @router.message(F.text == "Akkountlar")
 async def accounts_menu_handler(
-    message: Message
+    message: Message,
+    state: FSMContext
 ):
+    await state.clear()
+
     text = await generate_accounts_text()
 
     await message.answer(
@@ -243,7 +245,7 @@ async def percent_handler(
 @router.callback_query(
     F.data == "delete_account"
 )
-async def delete_account(
+async def delete_account_handler(
     callback: CallbackQuery,
     state: FSMContext
 ):

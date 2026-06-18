@@ -2,12 +2,18 @@ from aiogram import Router, Bot, F
 from aiogram.filters import Command
 from aiogram.types import Message, ChatMemberUpdated, CallbackQuery
 from keyboards.replykeyboards import rkb
+from aiogram.fsm.context import FSMContext
+
 
 router = Router()  # Bu modul uchun Router
 
 # /start komandasi
 @router.message(Command("start"))
-async def cmd_start(message: Message):
+async def cmd_start(
+        message: Message,
+        state: FSMContext
+        ):
+    await state.clear()
     user_name = message.from_user.first_name
     await message.answer(
         f"Salom, {user_name}! 👋\n"
@@ -17,7 +23,11 @@ async def cmd_start(message: Message):
 
 
 @router.callback_query(F.data == "cmd_start")
-async def back_to_start_callback(callback: CallbackQuery):
+async def back_to_start_callback(
+        callback: CallbackQuery,
+        state: FSMContext
+):
+    await state.clear()
     user_name = callback.from_user.first_name
 
     # Eskidan qolgan inline tugmalarni o'chirib tashlash uchun eski xabarni o'chiramiz

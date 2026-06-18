@@ -19,6 +19,7 @@ router = Router()
 
 @router.message(F.text == "Akkount statuslar")
 async def account_status(message: Message, state: FSMContext):
+    await state.clear()
     text = await generate_status_text()
     await message.answer(
         text,
