@@ -2,9 +2,11 @@ from aiogram import Router, F
 from aiogram.fsm.context import FSMContext
 from aiogram.types import Message, CallbackQuery
 from states.hisobot import ReportStates
-from keyboards.inline_keyboards import report_accounts_keyboard
+from keyboards.inline_keyboards import report_accounts_keyboard, night_tariff_keyboard
 from aiogram.filters.callback_data import CallbackData
 from aiogram.filters import Command
+from datetime import datetime, timedelta
+from zoneinfo import ZoneInfo
 
 router = Router()
 
@@ -106,3 +108,88 @@ async def get_price(
     await message.answer(text)
 
     await state.clear()
+
+
+@router.callback_query(
+    ReportStates.waiting_account,
+    F.data.startswith("report_acc_")
+)
+async def select_account(
+    callback: CallbackQuery,
+    state: FSMContext
+):
+    account_number = int(
+        callback.data.split("_")[-1]
+    )
+
+    await state.update_data(
+        account_number=account_number
+    )
+
+    await state.set_state(
+        ReportStates.waiting_hours
+    )
+
+    await callback.message.answer(
+        "Necha soatga berildi?",
+        reply_markup=night_tariff_keyboard()
+    )
+
+    await callback.answer()
+
+
+@router.callback_query(
+    ReportStates.waiting_hours,
+    F.data == "night_tariff"
+)
+async def night_tariff_handler(
+    callback: CallbackQuery,
+    state: FSMContext
+):
+
+    tz = ZoneInfo("Asia/Tashkent")
+    now = datetime.now(tz)
+
+    if now.hour < 9:
+
+        target = now.replace(
+            hour=9,
+            minute=0,
+            second=0,
+            microsecond=0
+        )
+
+    else:
+
+        target = (
+            now + timedelta(days=1)
+        ).replace(
+            hour=9,
+            minute=0,
+            second=0,
+            microsecond=0
+        )
+
+    hours = int(
+        round(
+            (
+                    target - now
+            ).total_seconds() / 3600
+        )
+    )
+
+    await state.update_data(
+        hours=hours
+    )
+
+    await state.set_state(
+        ReportStates.waiting_price
+    )
+
+    await callback.message.answer(
+        f"🌙 Tungi tarif tanlandi\n"
+        f"Soat: {hours}\n\n"
+        f"Umumiy summani kiriting:"
+    )
+
+    await callback.answer()

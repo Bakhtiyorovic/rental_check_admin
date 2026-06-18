@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from sqlalchemy import ForeignKey
+from sqlalchemy import ForeignKey, Float
 from sqlalchemy.orm import Mapped
 from sqlalchemy.orm import mapped_column
 from sqlalchemy.orm import relationship
@@ -20,7 +20,9 @@ class Report(Base):
         ForeignKey("accounts.id")
     )
 
-    hours: Mapped[int]
+    hours: Mapped[int] = mapped_column(
+    Float
+    )
 
     total_price: Mapped[int]
 

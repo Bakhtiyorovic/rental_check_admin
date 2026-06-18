@@ -202,3 +202,16 @@ def monthly_report_keyboard():
     kb.adjust(1)
 
     return kb.as_markup()
+
+
+
+def night_tariff_keyboard():
+
+    kb = InlineKeyboardBuilder()
+
+    kb.button(
+        text="🌙 Tungi tarif",
+        callback_data="night_tariff"
+    )
+
+    return kb.as_markup()
