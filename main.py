@@ -2,7 +2,7 @@ import asyncio
 import logging
 from aiogram import Bot, Dispatcher
 from config import BOT_TOKEN
-from handlers import accounts, reports, start, status, monthly  # handler modulini import
+from handlers import accounts, reports, start, status, monthly, daily  # handler modulini import
 from database.init_db import init_db
 from services.monthly_report_service import delete_old_reports
 from services.account_service import free_expired_accounts
@@ -26,6 +26,7 @@ async def main():
     # Routerni dp'ga biriktirish
     dp.include_router(accounts.router)
     dp.include_router(monthly.router)
+    dp.include_router(daily.router)
     dp.include_router(reports.router)
     dp.include_router(start.router)
     dp.include_router(status.router)

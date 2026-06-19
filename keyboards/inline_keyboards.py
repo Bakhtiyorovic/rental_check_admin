@@ -203,7 +203,28 @@ def monthly_report_keyboard():
 
     return kb.as_markup()
 
+def daily_report_keyboard():
 
+    kb = InlineKeyboardBuilder()
+
+    kb.button(
+        text="👤 Egalar bo'yicha",
+        callback_data="daily_owners"
+    )
+
+    kb.button(
+        text="🎮 Akkountlar bo'yicha",
+        callback_data="daily_accounts"
+    )
+
+    kb.button(
+        text="🔙 Asosiy sahifaga qaytish",
+        callback_data="cmd_start"
+    )
+
+    kb.adjust(1)
+
+    return kb.as_markup()
 
 def night_tariff_keyboard():
 

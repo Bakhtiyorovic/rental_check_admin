@@ -33,5 +33,6 @@ class Account(Base):
 
     reports = relationship(
         "Report",
-        back_populates="account"
+        back_populates="account",
+        cascade="all, delete-orphan"
     )
