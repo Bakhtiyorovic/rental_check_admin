@@ -147,9 +147,15 @@ async def generate_accounts_text():
 async def get_free_accounts():
     async with SessionLocal() as session:
 
+        now = datetime.utcnow()
+
         result = await session.execute(
             select(Account)
-            .where(Account.status == "free")
+            .where(
+                (Account.status == "free")
+                |
+                (Account.busy_until <= now)
+            )
             .order_by(Account.account_number)
         )
 
