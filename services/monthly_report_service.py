@@ -63,15 +63,34 @@ async def clear_owner_shares(owner_id: int):
 
     async with SessionLocal() as session:
 
+        # Avval shu owner_id ning nomini topamiz
+        owner = await session.scalar(
+            select(Owner)
+            .where(Owner.id == owner_id)
+        )
+
+        if not owner:
+            return
+
+        owner_name = owner.name
+
+        # Xuddi shu nomli BARCHA ownerlarning id larini topamiz
+        result = await session.execute(
+            select(Owner.id)
+            .where(Owner.name == owner_name)
+        )
+
+        owner_ids = [row[0] for row in result.all()]
+
+        # Barchasining share larini o'chiramiz
         await session.execute(
             delete(ReportShare)
             .where(
-                ReportShare.owner_id == owner_id
+                ReportShare.owner_id.in_(owner_ids)
             )
         )
 
         await session.commit()
-
 
 async def get_account_monthly_report():
 
