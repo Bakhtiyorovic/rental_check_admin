@@ -1,6 +1,5 @@
 from sqlalchemy import select
 from sqlalchemy.orm import selectinload
-from aiogram.utils.keyboard import InlineKeyboardBuilder
 from datetime import datetime, timedelta
 from database.db import SessionLocal
 from database.models import (

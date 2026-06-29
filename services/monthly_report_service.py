@@ -9,8 +9,10 @@ from database.db import SessionLocal
 from database.models import (
     ReportShare,
     Report,
-    Owner
+    Owner,
+    Account
 )
+
 
 async def get_owner_monthly_report():
 
@@ -36,38 +38,40 @@ async def get_owner_monthly_report():
 
         shares = result.scalars().all()
 
+        # { owner_name: {"profit": 0, "id": owner_id} }
         owner_stats = {}
-
         total_profit = 0
 
         for share in shares:
 
-            owner_name = (
-                share.owner.name
+            owner_name = share.owner.name
+            owner_id = share.owner.id
+
+            if owner_name not in owner_stats:
+                owner_stats[owner_name] = {
+                    "profit": 0,
+                    "id": owner_id
+                }
+
+            owner_stats[owner_name]["profit"] += share.amount
+            total_profit += share.amount
+
+        return owner_stats, total_profit
+
+
+async def clear_owner_shares(owner_id: int):
+
+    async with SessionLocal() as session:
+
+        await session.execute(
+            delete(ReportShare)
+            .where(
+                ReportShare.owner_id == owner_id
             )
-
-            owner_stats.setdefault(
-                owner_name,
-                0
-            )
-
-            owner_stats[
-                owner_name
-            ] += share.amount
-
-            total_profit += (
-                share.amount
-            )
-
-        return (
-            owner_stats,
-            total_profit
         )
 
+        await session.commit()
 
-from database.models import (
-    Account
-)
 
 async def get_account_monthly_report():
 
@@ -86,43 +90,27 @@ async def get_account_monthly_report():
                 )
             )
             .where(
-                Report.created_at
-                >= date_from
+                Report.created_at >= date_from
             )
         )
 
-        reports = (
-            result.scalars().all()
-        )
+        reports = result.scalars().all()
 
         account_stats = {}
-
         total_profit = 0
 
         for report in reports:
 
             acc_number = (
-                report.account
-                .account_number
+                report.account.account_number
             )
 
-            account_stats.setdefault(
-                acc_number,
-                0
-            )
+            account_stats.setdefault(acc_number, 0)
+            account_stats[acc_number] += report.total_price
+            total_profit += report.total_price
 
-            account_stats[
-                acc_number
-            ] += report.total_price
+        return account_stats, total_profit
 
-            total_profit += (
-                report.total_price
-            )
-
-        return (
-            account_stats,
-            total_profit
-        )
 
 async def delete_old_reports():
 
@@ -136,8 +124,7 @@ async def delete_old_reports():
         await session.execute(
             delete(Report)
             .where(
-                Report.created_at
-                < date_limit
+                Report.created_at < date_limit
             )
         )
 

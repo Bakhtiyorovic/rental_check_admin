@@ -3,35 +3,33 @@ from aiogram.types import (
     Message,
     CallbackQuery
 )
-from aiogram.fsm.context import FSMContext
+from aiogram.utils.keyboard import InlineKeyboardBuilder
+
 from keyboards.inline_keyboards import (
     monthly_report_keyboard,
     back_to_main_page
 )
 
-router = Router()
+from services.monthly_report_service import (
+    get_owner_monthly_report,
+    get_account_monthly_report,
+    clear_owner_shares
+)
 
+router = Router()
 
 
 @router.message(
     F.text == "Oylik hisobotlar"
 )
 async def monthly_report_menu(
-    message: Message,
-        state: FSMContext,
+    message: Message
 ):
-    await state.clear()
 
     await message.answer(
         "Hisobot turini tanlang:",
-        reply_markup=
-        monthly_report_keyboard()
+        reply_markup=monthly_report_keyboard()
     )
-
-
-from services.monthly_report_service import (
-    get_owner_monthly_report
-)
 
 
 @router.callback_query(
@@ -45,17 +43,16 @@ async def monthly_owner_report(
         await get_owner_monthly_report()
     )
 
-    text = (
-        "👤 Oxirgi 30 kun\n\n"
-    )
+    text = "👤 Oxirgi 30 kun\n\n"
 
-    for owner, profit in (
-        owner_stats.items()
-    ):
+    if not owner_stats:
+        text += "Hisobotlar topilmadi.\n"
+
+    for owner_name, data in owner_stats.items():
 
         text += (
-            f"{owner} : "
-            f"{profit:,} so'm\n"
+            f"{owner_name} : "
+            f"{data['profit']:,} so'm\n"
         )
 
     text += (
@@ -63,16 +60,89 @@ async def monthly_owner_report(
         f"{total_profit:,} so'm"
     )
 
+    # Har bir owner uchun "tozalash" tugmasi
+    kb = InlineKeyboardBuilder()
+
+    for owner_name, data in owner_stats.items():
+
+        kb.button(
+            text=f"🗑 {owner_name} hisobini tozalash",
+            callback_data=f"clear_owner_{data['id']}"
+        )
+
+    kb.button(
+        text="🔙 Asosiy sahifaga qaytish",
+        callback_data="cmd_start"
+    )
+
+    kb.adjust(1)
+
     await callback.message.answer(
         text,
-        reply_markup= back_to_main_page()
+        reply_markup=kb.as_markup()
     )
 
 
-
-from services.monthly_report_service import (
-    get_account_monthly_report
+@router.callback_query(
+    F.data.startswith("clear_owner_")
 )
+async def clear_owner_report(
+    callback: CallbackQuery
+):
+
+    owner_id = int(
+        callback.data.split("_")[-1]
+    )
+
+    await clear_owner_shares(owner_id)
+
+    await callback.answer(
+        "✅ Hisob tozalandi!",
+        show_alert=True
+    )
+
+    # Yangilangan hisobotni ko'rsatish
+    owner_stats, total_profit = (
+        await get_owner_monthly_report()
+    )
+
+    text = "👤 Oxirgi 30 kun\n\n"
+
+    if not owner_stats:
+        text += "Hisobotlar topilmadi.\n"
+
+    for owner_name, data in owner_stats.items():
+
+        text += (
+            f"{owner_name} : "
+            f"{data['profit']:,} so'm\n"
+        )
+
+    text += (
+        f"\n💰 Umumiy foyda:\n"
+        f"{total_profit:,} so'm"
+    )
+
+    kb = InlineKeyboardBuilder()
+
+    for owner_name, data in owner_stats.items():
+
+        kb.button(
+            text=f"🗑 {owner_name} hisobini tozalash",
+            callback_data=f"clear_owner_{data['id']}"
+        )
+
+    kb.button(
+        text="🔙 Asosiy sahifaga qaytish",
+        callback_data="cmd_start"
+    )
+
+    kb.adjust(1)
+
+    await callback.message.edit_text(
+        text,
+        reply_markup=kb.as_markup()
+    )
 
 
 @router.callback_query(
@@ -86,9 +156,10 @@ async def monthly_account_report(
         await get_account_monthly_report()
     )
 
-    text = (
-        "🎮 Oxirgi 30 kun\n\n"
-    )
+    text = "🎮 Oxirgi 30 kun\n\n"
+
+    if not account_stats:
+        text += "Hisobotlar topilmadi.\n"
 
     for account, profit in (
         account_stats.items()
@@ -107,5 +178,5 @@ async def monthly_account_report(
 
     await callback.message.answer(
         text,
-        reply_markup= back_to_main_page()
+        reply_markup=back_to_main_page()
     )
