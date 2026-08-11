@@ -82,46 +82,35 @@ async def cancel_report_and_free_account(
         account = await session.scalar(
             select(Account)
             .where(
-                Account.account_number
-                == account_number
+                Account.account_number == account_number
             )
         )
 
         if not account:
             return False
 
-        # Eng oxirgi reportni topamiz
+        if account.status != "busy":
+            return False
+
         last_report = await session.scalar(
             select(Report)
-            .where(Report.account_id == account.id)
-            .order_by(Report.created_at.desc())
+            .where(
+                Report.account_id == account.id
+            )
+            .order_by(
+                Report.created_at.desc()
+            )
         )
 
         if last_report:
+            await session.delete(last_report)
 
-            # Avval report_shares ni o'chiramiz
-            await session.execute(
-                delete(ReportShare)
-                .where(
-                    ReportShare.report_id
-                    == last_report.id
-                )
-            )
-
-            # Keyin reportni o'chiramiz
-            await session.execute(
-                delete(Report)
-                .where(Report.id == last_report.id)
-            )
-
-        # Akkountni bo'shatamiz
         account.status = "free"
         account.busy_until = None
 
         await session.commit()
 
         return True
-
 
 from services.account_service import get_accounts
 
