@@ -155,30 +155,34 @@ async def status_keyboard():
 
     accounts = await get_all_accounts()
 
-    # for account in accounts:
-    #
-    #     if account.status == "busy":
-    #
-    #         kb.button(
-    #             text=(
-    #                 f"🔓 "
-    #                 f"{account.account_number}"
-    #             ),
-    #             callback_data=(
-    #                 f"free_"
-    #                 f"{account.account_number}"
-    #             )
-    #         )
+    for account in accounts:
+
+        if account.status == "busy":
+
+            # Bo'shatish tugmasi
+            # kb.button(
+            #     text=f"🔓 {account.account_number}",
+            #     callback_data=(
+            #         f"free_{account.account_number}"
+            #     )
+            # )
+
+            # Bekor qilish tugmasi (hisobni o'chiradi)
+            kb.button(
+                text=f"❌ {account.account_number} bekor",
+                callback_data=(
+                    f"cancel_{account.account_number}"
+                )
+            )
 
     kb.button(
         text="🔙 Asosiy sahifaga qaytish",
         callback_data="cmd_start"
     )
 
-    kb.adjust(1)
+    kb.adjust(2)
 
     return kb.as_markup()
-
 
 def monthly_report_keyboard():
 

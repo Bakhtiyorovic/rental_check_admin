@@ -1,16 +1,15 @@
-from sqlalchemy import select
+from sqlalchemy import select, delete
 from sqlalchemy.orm import selectinload
+from aiogram.utils.keyboard import InlineKeyboardBuilder
 from datetime import datetime, timedelta
 from database.db import SessionLocal
 from database.models import (
     Account,
     AccountOwner,
     Report,
-    ReportShare,
-    OwnerReport,
-    UserOwner,
+    ReportShare
 )
-from services.notification_service import send_report
+
 
 async def create_report(
     account_number: int,
@@ -19,55 +18,42 @@ async def create_report(
 ):
     async with SessionLocal() as session:
 
-        # 1. Akkountni bazadan qidiramiz
         account = await session.scalar(
             select(Account)
-            .where(Account.account_number == account_number)
+            .where(
+                Account.account_number
+                == account_number
+            )
             .options(
                 selectinload(Account.owners)
                 .selectinload(AccountOwner.owner)
             )
         )
 
-        # Agar akkount topilmasa, jarayonni to'xtatamiz
-        if not account:
-            print(f"Xatolik: {account_number} raqamli akkount topilmadi!")
-            return []
-
-        # Agar account.id kutilmaganda None bo'lsa, xato bermasligi uchun tekshiruv
-        if account.id is None:
-            print(f"Xatolik: Akkount topildi, lekin uning ID si yo'q (None)!")
-            return []
-
-        # 2. Yangi Report yaratamiz (account_id ni aniq int ko'rinishida beramiz)
         report = Report(
-            account_id=int(account.id),
+            account_id=account.id,
             hours=hours,
             total_price=total_price
         )
+
         session.add(report)
 
-        # 3. Akkount statusini yangilaymiz
         account.status = "busy"
-        account.busy_until = datetime.utcnow() + timedelta(hours=hours)
 
-        # O'zgarishlarni bazaga vaqtincha yozamiz (report.id va statuslar aniq bo'lishi uchun)
+        account.busy_until = (
+            datetime.utcnow()
+            + timedelta(hours=hours)
+        )
+
         await session.flush()
-        # Flushdan keyin obyekti yangilab olamiz (Mabodo sessiyada chalkashlik bo'lsa)
-        await session.refresh(report)
 
         shares_text = []
 
         for relation in account.owners:
-            amount = (total_price * relation.percent) // 100
 
-            owner_report = OwnerReport(
-                owner_id=relation.owner.id,
-                account_number=account.account_number,
-                amount=amount,
-                hours=hours
-            )
-            session.add(owner_report)
+            amount = (
+                total_price * relation.percent
+            ) // 100
 
             share = ReportShare(
                 report_id=report.id,
@@ -75,29 +61,86 @@ async def create_report(
                 percent=relation.percent,
                 amount=amount
             )
+
             session.add(share)
 
-            shares_text.append(f"{relation.owner.name}: {amount:,} so'm")
-
-            # Xabar yuborish qismi
-            users = (
-                await session.scalars(
-                    select(UserOwner)
-                    .where(UserOwner.owner_id == relation.owner.id)
-                )
-            ).all()
-
-            owner_text = (
-                f"📊 Yangi hisobot\n\n"
-                f"Akkount: {account.account_number}\n"
-                f"Soat: {hours}\n"
-                f"Umumiy summa: {total_price:,} so'm\n\n"
-                f"Sizning foizingiz: {relation.percent}%\n"
-                f"Sizning ulushingiz: {amount:,} so'm"
+            shares_text.append(
+                f"{relation.owner.name}: "
+                f"{amount:,} so'm"
             )
 
-            for user in users:
-                await send_report(user.telegram_id, owner_text)
+        await session.commit()
+
+        return shares_text
+
+
+async def cancel_report_and_free_account(
+    account_number: int
+):
+    async with SessionLocal() as session:
+
+        account = await session.scalar(
+            select(Account)
+            .where(
+                Account.account_number
+                == account_number
+            )
+        )
+
+        if not account:
+            return False
+
+        # Eng oxirgi reportni topamiz
+        last_report = await session.scalar(
+            select(Report)
+            .where(Report.account_id == account.id)
+            .order_by(Report.created_at.desc())
+        )
+
+        if last_report:
+
+            # Avval report_shares ni o'chiramiz
+            await session.execute(
+                delete(ReportShare)
+                .where(
+                    ReportShare.report_id
+                    == last_report.id
+                )
+            )
+
+            # Keyin reportni o'chiramiz
+            await session.execute(
+                delete(Report)
+                .where(Report.id == last_report.id)
+            )
+
+        # Akkountni bo'shatamiz
+        account.status = "free"
+        account.busy_until = None
 
         await session.commit()
-        return shares_text
+
+        return True
+
+
+from services.account_service import get_accounts
+
+
+async def report_accounts_keyboard():
+
+    accounts = await get_accounts()
+
+    kb = InlineKeyboardBuilder()
+
+    for account in accounts:
+
+        kb.button(
+            text=f"Akkount {account.account_number}",
+            callback_data=(
+                f"report_{account.account_number}"
+            )
+        )
+
+    kb.adjust(1)
+
+    return kb.as_markup()

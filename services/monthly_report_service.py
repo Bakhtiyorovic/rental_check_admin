@@ -140,11 +140,36 @@ async def delete_old_reports():
             - timedelta(days=30)
         )
 
-        await session.execute(
-            delete(Report)
+        # Avval eski reportlarning id larini topamiz
+        result = await session.execute(
+            select(Report.id)
             .where(
                 Report.created_at < date_limit
             )
         )
+
+        old_report_ids = [
+            row[0] for row in result.all()
+        ]
+
+        if old_report_ids:
+
+            # Avval report_shares ni o'chiramiz
+            await session.execute(
+                delete(ReportShare)
+                .where(
+                    ReportShare.report_id.in_(
+                        old_report_ids
+                    )
+                )
+            )
+
+            # Keyin reportlarni o'chiramiz
+            await session.execute(
+                delete(Report)
+                .where(
+                    Report.id.in_(old_report_ids)
+                )
+            )
 
         await session.commit()

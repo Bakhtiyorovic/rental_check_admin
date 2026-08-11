@@ -5,25 +5,30 @@ from keyboards.inline_keyboards import status_keyboard
 from states.hisobot import ReportStates
 
 from datetime import datetime
-from utils.status_text import (
-    generate_status_text
-)
+from utils.status_text import generate_status_text
 
 from services.account_service import (
     set_account_free,
     get_account_by_number
 )
 
+from services.report_service import (
+    cancel_report_and_free_account
+)
 
 router = Router()
 
+
 @router.message(F.text == "Akkount statuslar")
-async def account_status(message: Message, state: FSMContext):
-    await state.clear()
+async def account_status(
+    message: Message,
+    state: FSMContext
+):
     text = await generate_status_text()
+
     await message.answer(
         text,
-        reply_markup= await status_keyboard()
+        reply_markup=await status_keyboard()
     )
 
 
@@ -34,8 +39,8 @@ async def refresh_status(
     callback: CallbackQuery
 ):
     await callback.message.edit_text(
-        text = await generate_status_text(),
-        reply_markup= await status_keyboard()
+        text=await generate_status_text(),
+        reply_markup=await status_keyboard()
     )
 
 
@@ -56,7 +61,6 @@ async def select_account(
     )
 
     if not account:
-
         await callback.answer(
             "Akkount topilmadi",
             show_alert=True
@@ -64,7 +68,6 @@ async def select_account(
         return
 
     if account.status == "busy":
-
         await callback.answer(
             "Bu akkount band",
             show_alert=True
@@ -83,13 +86,13 @@ async def select_account(
         "Necha soatga berildi?"
     )
 
+
 @router.callback_query(
     F.data.startswith("free_")
 )
 async def free_account(
     callback: CallbackQuery
 ):
-
     account_number = int(
         callback.data.split("_")[1]
     )
@@ -99,7 +102,6 @@ async def free_account(
     )
 
     if not success:
-
         await callback.answer(
             "Akkount topilmadi",
             show_alert=True
@@ -110,10 +112,41 @@ async def free_account(
 
     await callback.message.edit_text(
         text,
-        reply_markup=
-        await status_keyboard()
+        reply_markup=await status_keyboard()
+    )
+
+    await callback.answer("✅ Akkount bo'shatildi")
+
+
+@router.callback_query(
+    F.data.startswith("cancel_")
+)
+async def cancel_account(
+    callback: CallbackQuery
+):
+    account_number = int(
+        callback.data.split("_")[1]
+    )
+
+    success = await cancel_report_and_free_account(
+        account_number
+    )
+
+    if not success:
+        await callback.answer(
+            "Akkount topilmadi",
+            show_alert=True
+        )
+        return
+
+    text = await generate_status_text()
+
+    await callback.message.edit_text(
+        text,
+        reply_markup=await status_keyboard()
     )
 
     await callback.answer(
-        "Akkount bo'shatildi"
+        "✅ Buyurtma bekor qilindi!",
+        show_alert=True
     )
