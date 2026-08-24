@@ -219,14 +219,13 @@ async def free_expired_accounts():
 
         result = await session.execute(
             select(Account)
-            .where(
-                Account.status == "busy"
-            )
+            .where(Account.status == "busy")
         )
 
         accounts = result.scalars().all()
 
-        now = datetime.utcnow()
+        from datetime import timezone
+        now = datetime.now(timezone.utc).replace(tzinfo=None)
 
         changed = False
 

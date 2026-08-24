@@ -4,11 +4,11 @@ verify_ssl = true
 name = "pypi"
 
 [packages]
-aiogram = "*"
 sqlalchemy = "*"
 asyncpg = "*"
 psycopg2-binary = "*"
 python-dotenv = "*"
+aiogram = "*"
 
 [dev-packages]
 
