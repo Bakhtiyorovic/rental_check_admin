@@ -1,64 +1,172 @@
 from sqlalchemy import select
+
 from database.db import SessionLocal
-from database.models import Owner, OwnerReport, UserOwner
+from database.models import (
+    Account,
+    Owner,
+    Report,
+    ReportShare,
+    UserOwner
+)
+
 
 async def get_my_reports(telegram_id: int):
+
     async with SessionLocal() as session:
-        # 1. Telegram ID orqali ushbu foydalanuvchiga biriktirilgan Owner ID larni olamiz
+
         links = (
             await session.scalars(
-                select(UserOwner).where(UserOwner.telegram_id == telegram_id)
+                select(UserOwner).where(
+                    UserOwner.telegram_id == telegram_id
+                )
             )
         ).all()
 
-        # Agar foydalanuvchi hali ro'yxatdan (login) o'tmagan bo'lsa
         if not links:
             return "Avval 4 xonali kodingizni kiriting."
 
-        owner_ids = [link.owner_id for link in links]
+        owner_ids = [
+            link.owner_id
+            for link in links
+        ]
 
-        # 2. Ushbu owner_ids larga tegishli barcha hisobotlarni olamiz
-        reports = (
-            await session.scalars(
-                select(OwnerReport)
-                .where(OwnerReport.owner_id.in_(owner_ids))
-                .order_by(OwnerReport.id.desc())
+        result = await session.execute(
+            select(
+                Report,
+                ReportShare,
+                Owner,
+                Account
             )
-        ).all()
+            .join(
+                ReportShare,
+                ReportShare.report_id == Report.id
+            )
+            .join(
+                Owner,
+                Owner.id == ReportShare.owner_id
+            )
+            .join(
+                Account,
+                Account.id == Report.account_id
+            )
+            .where(
+                ReportShare.owner_id.in_(owner_ids)
+            )
+            .order_by(
+                Report.created_at.desc(),
+                Report.id.desc()
+            )
+        )
 
-        if not reports:
+        rows = result.all()
+
+        if not rows:
             return "Hisobotlar mavjud emas."
 
-        # 3. Agar owner ismini chiqarmoqchi bo'lsak, birinchi owner_id orqali nomini olamiz
-        # (Yoki har bir report ichida owner ma'lumotini chiqarish ham mumkin)
-        first_owner = await session.scalar(
-            select(Owner).where(Owner.id == owner_ids[0])
-        )
-        owner_name = first_owner.name if first_owner else "Kompaniya"
+        text = "📊 Hisobotlar\n\n"
 
-        text = f"{owner_name} hisobotlari\n\n"
+        for report, share, owner, account in rows:
 
-        for report in reports:
             text += (
-                f"📌 {report.account_number}\n"
-                f"💰 {report.amount:,}\n"
+                f"👤 {owner.name}\n"
+                f"📌 Akkount {account.account_number}\n"
+                f"💰 Sizning ulushingiz: "
+                f"{share.amount:,} so'm\n"
                 f"⏱ {report.hours} soat\n\n"
             )
 
         return text
 
 
-async def login_owner(code: int, telegram_id: int):
+async def notify_investors(bot, report_id: int):
+
     async with SessionLocal() as session:
-        # Maxfiy kod orqali ownerni topamiz
+
+        result = await session.execute(
+            select(
+                Report,
+                ReportShare,
+                Owner,
+                Account,
+                UserOwner.telegram_id
+            )
+            .join(
+                ReportShare,
+                ReportShare.report_id == Report.id
+            )
+            .join(
+                Owner,
+                Owner.id == ReportShare.owner_id
+            )
+            .join(
+                Account,
+                Account.id == Report.account_id
+            )
+            .join(
+                UserOwner,
+                UserOwner.owner_id == Owner.id
+            )
+            .where(
+                Report.id == report_id
+            )
+        )
+
+        rows = result.all()
+
+        sent = 0
+
+        for (
+            report,
+            share,
+            owner,
+            account,
+            telegram_id
+        ) in rows:
+
+            text = (
+                "📊 Yangi hisobot\n\n"
+                f"👤 {owner.name}\n"
+                f"📌 Akkount {account.account_number}\n"
+                f"💰 Sizning ulushingiz: "
+                f"{share.amount:,} so'm\n"
+                f"⏱ {report.hours} soat"
+            )
+
+            try:
+
+                await bot.send_message(
+                    chat_id=telegram_id,
+                    text=text
+                )
+
+                sent += 1
+
+            except Exception as e:
+
+                print(
+                    f"Investor xabar yuborishda xato: "
+                    f"{telegram_id} -> {e}"
+                )
+
+        return sent
+
+
+async def login_owner(
+    code: int,
+    telegram_id: int
+):
+
+    async with SessionLocal() as session:
+
         owner = await session.scalar(
-            select(Owner).where(Owner.secret_id == code)
+            select(Owner).where(
+                Owner.secret_id == code
+            )
         )
 
         if not owner:
             return None
 
-        # Foydalanuvchi allaqachon bu ownerga bog'langanmi yo'qmi tekshiramiz
         exists = await session.scalar(
             select(UserOwner).where(
                 UserOwner.telegram_id == telegram_id,
@@ -66,14 +174,15 @@ async def login_owner(code: int, telegram_id: int):
             )
         )
 
-        # Agar bog'lanmagan bo'lsa, yangi bog'liqlik yaratamiz
         if not exists:
+
             session.add(
                 UserOwner(
                     telegram_id=telegram_id,
                     owner_id=owner.id
                 )
             )
+
             await session.commit()
 
         return owner

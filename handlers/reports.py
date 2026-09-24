@@ -1,16 +1,23 @@
 from aiogram import Router, F
 from aiogram.fsm.context import FSMContext
 from aiogram.types import Message, CallbackQuery
+
 from states.hisobot import ReportStates
-from keyboards.inline_keyboards import report_accounts_keyboard, night_tariff_keyboard
+
+from keyboards.inline_keyboards import (
+    report_accounts_keyboard,
+    night_tariff_keyboard
+)
+
 from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
-
-router = Router()
 
 from services.report_service import (
     create_report
 )
+
+
+router = Router()
 
 
 @router.message(F.text == "Hisobotlar")
@@ -27,8 +34,9 @@ async def reports_menu(
 
     await message.answer(
         "Akkount tanlang:",
-        reply_markup=
-        await report_accounts_keyboard()
+        reply_markup=(
+            await report_accounts_keyboard()
+        )
     )
 
 
@@ -45,10 +53,21 @@ async def get_hours(
         await message.answer(
             "Soatni son bilan kiriting."
         )
+
+        return
+
+    hours = int(message.text)
+
+    if hours <= 0:
+
+        await message.answer(
+            "Soat 0 dan katta bo'lishi kerak."
+        )
+
         return
 
     await state.update_data(
-        hours=int(message.text)
+        hours=hours
     )
 
     await state.set_state(
@@ -73,11 +92,20 @@ async def get_price(
         await message.answer(
             "Summani son bilan kiriting."
         )
+
         return
 
     total_price = int(
         message.text
     )
+
+    if total_price <= 0:
+
+        await message.answer(
+            "Summa 0 dan katta bo'lishi kerak."
+        )
+
+        return
 
     data = await state.get_data()
 
@@ -85,7 +113,9 @@ async def get_price(
         "account_number"
     ]
 
-    hours = data["hours"]
+    hours = data[
+        "hours"
+    ]
 
     shares = await create_report(
         account_number=account_number,
@@ -93,17 +123,32 @@ async def get_price(
         total_price=total_price
     )
 
+    if shares is None:
+
+        await message.answer(
+            "❌ Hisobot yaratilmadi.\n"
+            "Akkount mavjud emas yoki "
+            "allaqachon band."
+        )
+
+        await state.clear()
+
+        return
+
     text = (
-        f"Akkount {account_number}\n"
+        f"✅ Akkount {account_number}\n"
         f"{hours} soatga\n"
-        f"umumiy "
-        f"{total_price:,} so'mga "
+        f"umumiy {total_price:,} so'mga "
         f"berildi\n\n"
     )
 
-    text += "\n".join(shares)
+    text += "\n".join(
+        shares
+    )
 
-    await message.answer(text)
+    await message.answer(
+        text
+    )
 
     await state.clear()
 
@@ -116,6 +161,7 @@ async def select_account(
     callback: CallbackQuery,
     state: FSMContext
 ):
+
     account_number = int(
         callback.data.split("_")[-1]
     )
@@ -130,7 +176,9 @@ async def select_account(
 
     await callback.message.answer(
         "Necha soatga berildi?",
-        reply_markup=night_tariff_keyboard()
+        reply_markup=(
+            night_tariff_keyboard()
+        )
     )
 
     await callback.answer()
@@ -145,7 +193,10 @@ async def night_tariff_handler(
     state: FSMContext
 ):
 
-    tz = ZoneInfo("Asia/Tashkent")
+    tz = ZoneInfo(
+        "Asia/Tashkent"
+    )
+
     now = datetime.now(tz)
 
     if now.hour < 9:
@@ -171,8 +222,9 @@ async def night_tariff_handler(
     hours = int(
         round(
             (
-                    target - now
-            ).total_seconds() / 3600
+                target - now
+            ).total_seconds()
+            / 3600
         )
     )
 

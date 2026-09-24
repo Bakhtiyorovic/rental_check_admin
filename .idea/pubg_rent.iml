@@ -4,7 +4,7 @@
     <content url="file://$MODULE_DIR$">
       <sourceFolder url="file://$MODULE_DIR$" isTestSource="false" />
     </content>
-    <orderEntry type="jdk" jdkName="Pipenv (pubg_rent)" jdkType="Python SDK" />
+    <orderEntry type="jdk" jdkName="~/.local/share/virtualenvs/rental_check_admin-Gdq7lw8H" jdkType="Python SDK" />
     <orderEntry type="sourceFolder" forTests="false" />
   </component>
 </module>

@@ -44,47 +44,47 @@ async def refresh_status(
     )
 
 
-@router.callback_query(
-    ReportStates.waiting_account,
-    F.data.startswith("report_acc_")
-)
-async def select_account(
-    callback: CallbackQuery,
-    state: FSMContext
-):
-    account_number = int(
-        callback.data.split("_")[-1]
-    )
-
-    account = await get_account_by_number(
-        account_number
-    )
-
-    if not account:
-        await callback.answer(
-            "Akkount topilmadi",
-            show_alert=True
-        )
-        return
-
-    if account.status == "busy":
-        await callback.answer(
-            "Bu akkount band",
-            show_alert=True
-        )
-        return
-
-    await state.update_data(
-        account_number=account_number
-    )
-
-    await state.set_state(
-        ReportStates.waiting_hours
-    )
-
-    await callback.message.answer(
-        "Necha soatga berildi?"
-    )
+# @router.callback_query(
+#     ReportStates.waiting_account,
+#     F.data.startswith("report_acc_")
+# )
+# async def select_account(
+#     callback: CallbackQuery,
+#     state: FSMContext
+# ):
+#     account_number = int(
+#         callback.data.split("_")[-1]
+#     )
+#
+#     account = await get_account_by_number(
+#         account_number
+#     )
+#
+#     if not account:
+#         await callback.answer(
+#             "Akkount topilmadi",
+#             show_alert=True
+#         )
+#         return
+#
+#     if account.status == "busy":
+#         await callback.answer(
+#             "Bu akkount band",
+#             show_alert=True
+#         )
+#         return
+#
+#     await state.update_data(
+#         account_number=account_number
+#     )
+#
+#     await state.set_state(
+#         ReportStates.waiting_hours
+#     )
+#
+#     await callback.message.answer(
+#         "Necha soatga berildi?"
+#     )
 
 
 @router.callback_query(
