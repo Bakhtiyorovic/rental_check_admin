@@ -42,7 +42,8 @@ async def create_report(
         if not account:
             return None
 
-        if account.status == "busy":
+        now = datetime.utcnow()
+        if account.status == "busy" and account.busy_until and account.busy_until > now:
             return None
 
         report = Report(
@@ -134,7 +135,12 @@ async def cancel_report_and_free_account(
         if not account:
             return False
 
-        if account.status != "busy":
+        now = datetime.utcnow()
+        if account.busy_until and account.busy_until <= now:
+            # Vaqti tugab bo'lgan hisobot bekor qilinmaydi (tarixda qoladi), faqat statusi free qilinadi
+            account.status = "free"
+            account.busy_until = None
+            await session.commit()
             return False
 
         last_report = await session.scalar(
